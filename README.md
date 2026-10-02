@@ -7,7 +7,7 @@ This is a server-side mod. It keeps the original provider/configuration model an
 ## Requirements
 
 - Minecraft 1.20.1
-- Forge 47.x
+- Forge 47.4.23 (compatible with Forge 47.x)
 - Java 17
 - `online-mode=true` in `server.properties`
 - `enforce-secure-profile=false` is recommended when using third-party authentication providers
@@ -93,7 +93,8 @@ Example:
 - Replaced Fabric Loom with ForgeGradle.
 - Replaced the Fabric server initializer with a Forge `@Mod` entrypoint.
 - Replaced `FabricLoader`'s config directory with Forge's `FMLPaths.CONFIGDIR`.
-- Recreated the Authlib Mixin hooks and added a Forge-compatible Mixin/refmap configuration.
+- Recreated the Authlib Mixin hooks and registered them through Forge's `[[mixins]]` metadata.
+- Uses Mixin compatibility level `JAVA_13`, which avoids the warning emitted by Forge 1.20.1's bundled Mixin 0.8.5 while still running on Java 17.
 - Switched the project to Java 17, which is the runtime required by Minecraft 1.20.1.
 - Replaced `fabric.mod.json` with Forge `META-INF/mods.toml`.
 - Removed Fabric API/Fabric Loader dependencies.
@@ -102,3 +103,16 @@ Example:
 ## Compatibility note
 
 The port intentionally preserves the original authentication flow rather than changing it into a Forge-specific implementation. The two hooks target Mojang Authlib classes (`YggdrasilMinecraftSessionService` and `YggdrasilGameProfileRepository`), so other mods that modify the same Authlib methods may interact with these mixins.
+
+
+## Troubleshooting Mixin application
+
+For a temporary diagnostic run, add these JVM properties to the server launch command:
+
+```text
+-Dmixin.debug=true -Dmixin.debug.verbose=true -Dmixin.debug.export=true -Dmixin.dumpTargetOnFailure=true
+```
+
+Then inspect `latest.log` for Mixin activity. If `mixin.debug.export` is enabled successfully, transformed classes are normally written under `.mixin.out/`.
+
+The mod's own `debug` setting in `config/alternative-auth.json` controls Alternative Authentication's provider logging; it does not enable Mixin's JVM-level diagnostics.
