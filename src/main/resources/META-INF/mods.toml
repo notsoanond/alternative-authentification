@@ -11,9 +11,6 @@ authors="GGSkyOne"
 description='''Use third-party authentication servers, like Ely.by, on your server without interfering with Mojang authentication.'''
 displayTest="MATCH_VERSION"
 
-[[mixins]]
-config="alternative_auth.mixins.json"
-
 [[dependencies.alternative_auth]]
 modId="forge"
 mandatory=true

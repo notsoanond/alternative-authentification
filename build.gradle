@@ -3,7 +3,6 @@ plugins {
     id 'idea'
     id 'maven-publish'
     id 'net.minecraftforge.gradle' version '[6.0,6.2)'
-    id 'org.spongepowered.mixin' version '0.7-SNAPSHOT'
 }
 
 version = project.mod_version
@@ -33,18 +32,8 @@ minecraft {
     }
 }
 
-repositories {
-    maven { name = 'Sponge'; url = 'https://repo.spongepowered.org/repository/maven-public/' }
-}
-
 dependencies {
     minecraft "net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}"
-    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
-}
-
-mixin {
-    add sourceSets.main, "alternative_auth.refmap.json"
-    config "alternative_auth.mixins.json"
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -84,7 +73,6 @@ jar {
             'Implementation-Title'    : project.name,
             'Implementation-Version'  : project.version,
             'Implementation-Vendor'   : 'GGSkyOne',
-            'MixinConfigs'           : 'alternative_auth.mixins.json',
         ])
     }
     from('LICENSE') {
