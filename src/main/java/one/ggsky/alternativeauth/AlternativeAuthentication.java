@@ -51,27 +51,43 @@ public class AlternativeAuthentication {
         Object services = servicesField.get(server);
         if (services == null) throw new IllegalStateException("MinecraftServer services field is null");
 
-        Field sessionField = null;
-        for (Field field : services.getClass().getDeclaredFields()) {
-            if (YggdrasilMinecraftSessionService.class.isAssignableFrom(field.getType())
-                    || com.mojang.authlib.minecraft.MinecraftSessionService.class.isAssignableFrom(field.getType())) {
-                sessionField = field;
-                break;
+        java.lang.reflect.RecordComponent[] components = services.getClass().getRecordComponents();
+        if (components == null) {
+            throw new IllegalStateException("MinecraftServer Services is not a record");
+        }
+
+        Object[] arguments = new Object[components.length];
+        Class<?>[] parameterTypes = new Class<?>[components.length];
+        AlternativeAuthSessionService replacement = null;
+        boolean replaced = false;
+
+        for (int i = 0; i < components.length; i++) {
+            java.lang.reflect.RecordComponent component = components[i];
+            parameterTypes[i] = component.getType();
+            Object value = component.getAccessor().invoke(services);
+
+            if (!replaced && value instanceof YggdrasilMinecraftSessionService yggdrasil) {
+                replacement = new AlternativeAuthSessionService(yggdrasil.getAuthenticationService());
+                value = replacement;
+                replaced = true;
+            } else if (!replaced && value instanceof com.mojang.authlib.minecraft.MinecraftSessionService sessionService) {
+                throw new IllegalStateException(
+                        "Services contains a non-Yggdrasil MinecraftSessionService: "
+                                + sessionService.getClass().getName()
+                );
             }
-        }
-        if (sessionField == null) {
-            throw new IllegalStateException("Could not locate MinecraftSessionService in Services");
+            arguments[i] = value;
         }
 
-        sessionField.setAccessible(true);
-        Object current = sessionField.get(services);
-        if (!(current instanceof YggdrasilMinecraftSessionService yggdrasil)) {
-            throw new IllegalStateException("Unexpected session service: " + current);
+        if (!replaced) {
+            throw new IllegalStateException("Could not locate Yggdrasil MinecraftSessionService in Services record");
         }
 
-        AlternativeAuthSessionService replacement =
-                new AlternativeAuthSessionService(yggdrasil.getAuthenticationService());
-        setFinalField(services, sessionField, replacement);
+        java.lang.reflect.Constructor<?> constructor = services.getClass().getDeclaredConstructor(parameterTypes);
+        constructor.setAccessible(true);
+        Object replacementServices = constructor.newInstance(arguments);
+
+        setFinalField(server, servicesField, replacementServices);
         AlternativeAuthLoggerManager.getLogger().info("Installed Alternative Authentication session service");
     }
 
