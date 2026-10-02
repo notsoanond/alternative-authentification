@@ -9,7 +9,7 @@ import com.mojang.authlib.HttpAuthenticationService;
 import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService;
 import com.mojang.authlib.yggdrasil.YggdrasilMinecraftSessionService;
-import com.mojang.authlib.yggdrasil.YggdrasilEnvironment;
+import com.mojang.authlib.Environment;
 import one.ggsky.alternativeauth.config.AlternativeAuthConfig;
 import one.ggsky.alternativeauth.config.AlternativeAuthProvider;
 import one.ggsky.alternativeauth.config.AlternativeAuthConfigManager;
@@ -35,7 +35,7 @@ public final class AlternativeAuthSessionService extends YggdrasilMinecraftSessi
     private final AlternativeAuthConfig config;
 
     public AlternativeAuthSessionService(YggdrasilAuthenticationService authenticationService) {
-        super(authenticationService, YggdrasilEnvironment.PROD);
+        super(authenticationService, Environment.create("https://authserver.mojang.com", "https://api.mojang.com", "https://sessionserver.mojang.com", "https://api.minecraftservices.com", "PROD"));
         this.logger = AlternativeAuthLoggerManager.getLogger();
         this.config = AlternativeAuthConfigManager.getConfig();
     }
