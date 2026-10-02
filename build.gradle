@@ -84,6 +84,7 @@ jar {
             'Implementation-Title'    : project.name,
             'Implementation-Version'  : project.version,
             'Implementation-Vendor'   : 'GGSkyOne',
+            'MixinConfigs'           : 'alternative_auth.mixins.json',
         ])
     }
     from('LICENSE') {
