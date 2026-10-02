@@ -1,62 +1,98 @@
 plugins {
-	id 'fabric-loom' version '1.7-SNAPSHOT'
-	id 'maven-publish'
+    id 'eclipse'
+    id 'idea'
+    id 'maven-publish'
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+    id 'org.spongepowered.mixin' version '0.7-SNAPSHOT'
 }
 
 version = project.mod_version
 group = project.maven_group
 
 base {
-	archivesName = project.archives_base_name
+    archivesName = project.archives_base_name
+}
+
+minecraft {
+    mappings channel: 'official', version: project.minecraft_version
+    copyIdeResources = true
+
+    runs {
+        configureEach {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            mods {
+                alternativeauth {
+                    source sourceSets.main
+                }
+            }
+        }
+        server { }
+        client { }
+    }
 }
 
 repositories {
-	
+    maven { name = 'Sponge'; url = 'https://repo.spongepowered.org/repository/maven-public/' }
 }
 
 dependencies {
-	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
-    
-	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-	
+    minecraft "net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}"
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 }
 
-processResources {
-	inputs.property "version", project.version
-
-	filesMatching("fabric.mod.json") {
-		expand "version": project.version
-	}
+mixin {
+    add sourceSets.main, "alternative-auth.refmap.json"
+    config "alternative-auth.mixins.json"
 }
 
 tasks.withType(JavaCompile).configureEach {
-	it.options.release = 16
+    options.encoding = 'UTF-8'
+    options.release = 17
 }
 
 java {
-	withSourcesJar()
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
+    withSourcesJar()
+}
 
-	sourceCompatibility = JavaVersion.VERSION_16
-	targetCompatibility = JavaVersion.VERSION_16
+processResources {
+    inputs.property "version", project.version
+    inputs.property "minecraft_version", project.minecraft_version
+    inputs.property "forge_version", project.forge_version
+    filesMatching('META-INF/mods.toml') {
+        expand(
+            'version': project.version,
+            'minecraft_version': project.minecraft_version,
+            'forge_version': project.forge_version,
+            'loader_version_range': project.loader_version_range
+        )
+    }
 }
 
 jar {
-	from("LICENSE") {
-		rename { "${it}_${project.base.archivesName.get()}"}
-	}
+    manifest {
+        attributes([
+            'Specification-Title'     : 'alternative-auth',
+            'Specification-Vendor'    : 'GGSkyOne',
+            'Specification-Version'   : '1',
+            'Implementation-Title'    : project.name,
+            'Implementation-Version'  : project.version,
+            'Implementation-Vendor'   : 'GGSkyOne',
+            'MixinConfigs'            : 'alternative-auth.mixins.json'
+        ])
+    }
+    from('LICENSE') {
+        rename { "${it}_${project.archives_base_name}" }
+    }
 }
 
 publishing {
-	publications {
-		create("mavenJava", MavenPublication) {
-			artifactId = project.archives_base_name
-			from components.java
-		}
-	}
-
-	repositories {
-		
-	}
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = project.archives_base_name
+            from components.java
+        }
+    }
 }

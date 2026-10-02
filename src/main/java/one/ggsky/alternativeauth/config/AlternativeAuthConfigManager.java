@@ -10,7 +10,7 @@ import java.util.Scanner;
 import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
 
-import net.fabricmc.loader.api.FabricLoader;
+import net.minecraftforge.fml.loading.FMLPaths;
 import one.ggsky.alternativeauth.AlternativeAuthentication;
 
 public class AlternativeAuthConfigManager {
@@ -22,7 +22,7 @@ public class AlternativeAuthConfigManager {
     }
 
     public static void loadConfig() {
-        File configurationFile = FabricLoader.getInstance().getConfigDir().resolve("alternative-auth.json").toFile();
+        File configurationFile = FMLPaths.CONFIGDIR.get().resolve("alternative-auth.json").toFile();
 
         if (!configurationFile.exists()) {
             createDefaultConfig(configurationFile);

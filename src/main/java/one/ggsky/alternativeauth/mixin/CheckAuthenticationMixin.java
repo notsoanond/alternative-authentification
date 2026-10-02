@@ -8,19 +8,11 @@ import com.mojang.authlib.exceptions.AuthenticationUnavailableException;
 import com.mojang.authlib.properties.PropertyMap;
 import com.mojang.authlib.yggdrasil.YggdrasilMinecraftSessionService;
 import com.mojang.authlib.yggdrasil.response.HasJoinedMinecraftServerResponse;
-
-import one.ggsky.alternativeauth.config.AlternativeAuthConfig;
-import one.ggsky.alternativeauth.config.AlternativeAuthConfigManager;
-import one.ggsky.alternativeauth.config.AlternativeAuthProvider;
-import one.ggsky.alternativeauth.logger.AlternativeAuthLogger;
-import one.ggsky.alternativeauth.logger.AlternativeAuthLoggerManager;
-
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
+import one.ggsky.alternativeauth.config.*;
+import one.ggsky.alternativeauth.logger.*;
+import org.spongepowered.asm.mixin.*;
+import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
 import java.net.InetAddress;
 import java.net.URL;
 import java.text.MessageFormat;
@@ -31,72 +23,88 @@ import java.util.Map;
 public abstract class CheckAuthenticationMixin {
     @Shadow public abstract AuthenticationService getAuthenticationService();
 
-    AlternativeAuthLogger LOGGER = AlternativeAuthLoggerManager.getLogger();
-    AlternativeAuthConfig CONFIG = AlternativeAuthConfigManager.getConfig();
+    private final AlternativeAuthLogger LOGGER = AlternativeAuthLoggerManager.getLogger();
+    private final AlternativeAuthConfig CONFIG = AlternativeAuthConfigManager.getConfig();
 
-    @Inject(at = @At("HEAD"), method = "hasJoinedServer", remap = false, cancellable = true)
-    public void CheckAuthentication(final GameProfile user, String serverId, InetAddress address, CallbackInfoReturnable<GameProfile> cir) throws AuthenticationUnavailableException {
-        AuthenticationServiceAccessor authenticationService = ((AuthenticationServiceAccessor) getAuthenticationService());
+    @Inject(method = "hasJoinedServer", at = @At("HEAD"), remap = false, cancellable = true)
+    private void alternativeAuth$checkAuthentication(
+            GameProfile user, String serverId, InetAddress address,
+            CallbackInfoReturnable<GameProfile> cir
+    ) throws AuthenticationUnavailableException {
+        AuthenticationServiceAccessor authenticationService =
+                (AuthenticationServiceAccessor) getAuthenticationService();
 
-        final Map<String, Object> arguments = new HashMap<>();
-
+        Map<String, Object> arguments = new HashMap<>();
         arguments.put("username", user.getName());
         arguments.put("serverId", serverId);
-
-        if (address != null) {
-            arguments.put("ip", address.getHostAddress());
-        }
+        if (address != null) arguments.put("ip", address.getHostAddress());
 
         for (AlternativeAuthProvider provider : CONFIG.getProviders()) {
             LOGGER.debug("Trying to authenticate player via " + provider.name());
             LOGGER.debug("Using " + provider.getCheckUrl());
 
-            final URL url = HttpAuthenticationService.concatenateURL(HttpAuthenticationService.constantURL(provider.getCheckUrl()), HttpAuthenticationService.buildQuery(arguments));
-            
+            URL url = HttpAuthenticationService.concatenateURL(
+                    HttpAuthenticationService.constantURL(provider.getCheckUrl()),
+                    HttpAuthenticationService.buildQuery(arguments)
+            );
+
             try {
-                final HasJoinedMinecraftServerResponse response = authenticationService.callMakeRequest(url, null, HasJoinedMinecraftServerResponse.class, null);
+                HasJoinedMinecraftServerResponse response =
+                        authenticationService.callMakeRequest(
+                                url, null, HasJoinedMinecraftServerResponse.class, null
+                        );
 
                 if (response != null && response.getId() != null) {
-                    LOGGER.debug("Response is not null");
-                    final GameProfile result = new GameProfile(response.getId(), user.getName());
+                    GameProfile result = new GameProfile(response.getId(), user.getName());
 
                     if (response.getProperties() != null) {
                         PropertyMap properties;
-                        LOGGER.debug("Properties is not null");
-
                         if (provider.getPropertyUrl() != null) {
-                            LOGGER.debug(MessageFormat.format("Found {0} property URL, fetching {1}", provider.name(), MessageFormat.format(provider.getPropertyUrl(), user.getName(), response.getId())));
+                            LOGGER.debug(MessageFormat.format(
+                                    "Found {0} property URL, fetching {1}",
+                                    provider.name(),
+                                    MessageFormat.format(
+                                            provider.getPropertyUrl(),
+                                            user.getName(), response.getId()
+                                    )
+                            ));
 
-                            final URL propertyUrl = HttpAuthenticationService.concatenateURL(HttpAuthenticationService.constantURL(MessageFormat.format(provider.getPropertyUrl(), user.getName(), response.getId())), null);
-                            final HasJoinedMinecraftServerResponse propertyResponse = authenticationService.callMakeRequest(propertyUrl, null, HasJoinedMinecraftServerResponse.class, null);
+                            URL propertyUrl = HttpAuthenticationService.concatenateURL(
+                                    HttpAuthenticationService.constantURL(
+                                            MessageFormat.format(
+                                                    provider.getPropertyUrl(),
+                                                    user.getName(), response.getId()
+                                            )
+                                    ), null
+                            );
 
-                            if (propertyResponse != null) {
-                                LOGGER.debug("Properties is not null");
-                                properties = propertyResponse.getProperties();
-                            } else {
-                                LOGGER.debug("Property response is null, falling back to initial properties");
-                                properties = response.getProperties();
-                            }
+                            HasJoinedMinecraftServerResponse propertyResponse =
+                                    authenticationService.callMakeRequest(
+                                            propertyUrl, null,
+                                            HasJoinedMinecraftServerResponse.class, null
+                                    );
+
+                            properties = propertyResponse != null
+                                    ? propertyResponse.getProperties()
+                                    : response.getProperties();
                         } else {
                             properties = response.getProperties();
                         }
-
                         result.getProperties().putAll(properties);
                     }
 
                     LOGGER.info("Authenticating player via " + provider.name());
                     cir.setReturnValue(result);
-                    break;
-                } else {
-                    cir.setReturnValue(null);
+                    return;
                 }
-            } catch (final AuthenticationUnavailableException exception) {
+            } catch (AuthenticationUnavailableException exception) {
                 throw exception;
-            } catch (final AuthenticationException ignored) {
+            } catch (AuthenticationException ignored) {
                 cir.setReturnValue(null);
+                return;
             }
         }
 
-        cir.cancel();
+        cir.setReturnValue(null);
     }
 }

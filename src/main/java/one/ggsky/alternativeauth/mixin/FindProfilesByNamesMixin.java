@@ -12,110 +12,91 @@ import com.mojang.authlib.yggdrasil.ProfileNotFoundException;
 import com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService;
 import com.mojang.authlib.yggdrasil.YggdrasilGameProfileRepository;
 import com.mojang.authlib.yggdrasil.response.ProfileSearchResultsResponse;
-
-import one.ggsky.alternativeauth.config.AlternativeAuthConfig;
-import one.ggsky.alternativeauth.config.AlternativeAuthConfigManager;
-import one.ggsky.alternativeauth.config.AlternativeAuthProvider;
-import one.ggsky.alternativeauth.logger.AlternativeAuthLogger;
-import one.ggsky.alternativeauth.logger.AlternativeAuthLoggerManager;
-
-import org.spongepowered.asm.mixin.Final;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
+import one.ggsky.alternativeauth.config.*;
+import one.ggsky.alternativeauth.logger.*;
+import org.spongepowered.asm.mixin.*;
+import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-
 import java.net.URL;
-import java.text.MessageFormat;
 import java.util.*;
 
 @Mixin(YggdrasilGameProfileRepository.class)
 public class FindProfilesByNamesMixin {
     @Shadow private YggdrasilAuthenticationService authenticationService;
 
-    AlternativeAuthLogger LOGGER = AlternativeAuthLoggerManager.getLogger();
-    AlternativeAuthConfig CONFIG = AlternativeAuthConfigManager.getConfig();
+    private final AlternativeAuthLogger LOGGER = AlternativeAuthLoggerManager.getLogger();
+    private final AlternativeAuthConfig CONFIG = AlternativeAuthConfigManager.getConfig();
 
     private static final int ENTRIES_PER_PAGE = 2;
     private static final int MAX_FAIL_COUNT = 3;
     private static final int DELAY_BETWEEN_PAGES = 100;
     private static final int DELAY_BETWEEN_FAILURES = 750;
 
-    @Inject(at = @At("HEAD"), method = "findProfilesByNames", remap = false, cancellable = true)
-    public void findProfilesByNames(final String[] names, final Agent agent, ProfileLookupCallback callback, CallbackInfo ci) {
-        final Set<String> criteria = Sets.newHashSet();
-
-        for (final String name : names) {
-            if (!Strings.isNullOrEmpty(name)) {
-                criteria.add(name.toLowerCase());
-            }
+    @Inject(method = "findProfilesByNames", at = @At("HEAD"), remap = false, cancellable = true)
+    private void alternativeAuth$findProfilesByNames(
+            String[] names, Agent agent, ProfileLookupCallback callback, CallbackInfo ci
+    ) {
+        Set<String> criteria = Sets.newHashSet();
+        for (String name : names) {
+            if (!Strings.isNullOrEmpty(name)) criteria.add(name.toLowerCase(Locale.ROOT));
         }
 
-        final int page = 0;
-
-        for (final List<String> request : Iterables.partition(criteria, ENTRIES_PER_PAGE)) {
+        for (List<String> request : Iterables.partition(criteria, ENTRIES_PER_PAGE)) {
             int failCount = 0;
             boolean failed;
-
             do {
                 failed = false;
-
                 try {
                     ProfileSearchResultsResponse response = null;
 
                     for (AlternativeAuthProvider provider : CONFIG.getProviders()) {
-                        final URL url = HttpAuthenticationService.constantURL(provider.getProfilesUrl());
-                        response = ((AuthenticationServiceAccessor) authenticationService).callMakeRequest(url, request, ProfileSearchResultsResponse.class, null);
+                        URL url = HttpAuthenticationService.constantURL(provider.getProfilesUrl());
+                        response = ((AuthenticationServiceAccessor) authenticationService)
+                                .callMakeRequest(url, request, ProfileSearchResultsResponse.class, null);
 
-                        if (response != null && response.getProfiles().length != 0) {
-                            LOGGER.debug(MessageFormat.format("Response from {0} provider is not null and contains at least 1 element", provider.name()));
-                            break;
-                        } else {
-                            LOGGER.debug(MessageFormat.format("Response from {0} provider is either null or contains no elements", provider.name()));
-                        }
+                        if (response != null && response.getProfiles().length != 0) break;
                     }
 
-                    failCount = 0;
+                    if (response == null) {
+                        throw new AuthenticationException("No authentication provider returned a response");
+                    }
 
-                    LOGGER.debug(MessageFormat.format("Page {0} returned {1} results, parsing", page, response.getProfiles().length));
-
-                    final Set<String> missing = Sets.newHashSet(request);
-
-                    for (final GameProfile profile : response.getProfiles()) {
-                        LOGGER.debug(MessageFormat.format("Successfully looked up profile {0}", profile.toString()));
-                        missing.remove(profile.getName().toLowerCase());
+                    Set<String> missing = Sets.newHashSet(request);
+                    for (GameProfile profile : response.getProfiles()) {
+                        missing.remove(profile.getName().toLowerCase(Locale.ROOT));
                         callback.onProfileLookupSucceeded(profile);
                     }
 
-                    for (final String name : missing) {
-                        LOGGER.debug(MessageFormat.format("Couldn't find profile {0}", name));
-                        callback.onProfileLookupFailed(new GameProfile(null, name), new ProfileNotFoundException("Server did not find the requested profile"));
+                    for (String name : missing) {
+                        callback.onProfileLookupFailed(
+                                new GameProfile(null, name),
+                                new ProfileNotFoundException("Server did not find the requested profile")
+                        );
                     }
 
+                    failCount = 0;
                     try {
                         Thread.sleep(DELAY_BETWEEN_PAGES);
-                    } catch (final InterruptedException ignored) {
+                    } catch (InterruptedException ignored) {
+                        Thread.currentThread().interrupt();
                     }
-                } catch (final AuthenticationException e) {
+                } catch (AuthenticationException e) {
                     failCount++;
-
                     if (failCount == MAX_FAIL_COUNT) {
-                        for (final String name : request) {
-                            LOGGER.debug(MessageFormat.format("Couldn't find profile {} because of a server error", name));
+                        for (String name : request) {
                             callback.onProfileLookupFailed(new GameProfile(null, name), e);
                         }
                     } else {
                         try {
                             Thread.sleep(DELAY_BETWEEN_FAILURES);
-                        } catch (final InterruptedException ignored) {
+                        } catch (InterruptedException ignored) {
+                            Thread.currentThread().interrupt();
                         }
                         failed = true;
                     }
                 }
             } while (failed);
         }
-
         ci.cancel();
     }
 }

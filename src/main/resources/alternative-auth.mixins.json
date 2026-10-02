@@ -1,9 +1,15 @@
 {
-    "required": true,
-    "package": "one.ggsky.alternativeauth.mixin",
-    "compatibilityLevel": "JAVA_16",
-    "mixins": ["CheckAuthenticationMixin", "FindProfilesByNamesMixin", "AuthenticationServiceAccessor"],
-    "injectors": {
-        "defaultRequire": 1
-    }
+  "required": true,
+  "minVersion": "0.8",
+  "package": "one.ggsky.alternativeauth.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "alternative-auth.refmap.json",
+  "mixins": [
+    "CheckAuthenticationMixin",
+    "FindProfilesByNamesMixin",
+    "AuthenticationServiceAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
 }
