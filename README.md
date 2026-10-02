@@ -40,7 +40,7 @@ This is a server-side mod. It keeps the original provider/configuration model an
 4. The compiled mod will be in:
 
    ```text
-   build/libs/alternative-auth-1.1.1.jar
+   build/libs/alternative_auth-1.1.1.jar
    ```
 
 5. Copy that JAR into the server's `mods` directory alongside your other Forge 1.20.1 mods.

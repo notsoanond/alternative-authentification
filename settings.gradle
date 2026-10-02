@@ -6,4 +6,4 @@ pluginManagement {
         mavenCentral()
     }
 }
-rootProject.name = 'alternative-auth'
+rootProject.name = 'alternative_auth'

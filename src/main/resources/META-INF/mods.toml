@@ -4,21 +4,21 @@ license="MIT"
 showAsResourcePack=false
 
 [[mods]]
-modId="alternative-auth"
+modId="alternative_auth"
 version="${version}"
 displayName="Alternative Authentication"
 authors="GGSkyOne"
 description='''Use third-party authentication servers, like Ely.by, on your server without interfering with Mojang authentication.'''
 displayTest="MATCH_VERSION"
 
-[[dependencies.alternative-auth]]
+[[dependencies.alternative_auth]]
 modId="forge"
 mandatory=true
 versionRange="${forge_version_range}"
 ordering="NONE"
 side="SERVER"
 
-[[dependencies.alternative-auth]]
+[[dependencies.alternative_auth]]
 modId="minecraft"
 mandatory=true
 versionRange="${minecraft_version_range}"

@@ -7,7 +7,7 @@ import one.ggsky.alternativeauth.logger.AlternativeAuthLoggerManager;
 
 @Mod(AlternativeAuthentication.MOD_ID)
 public class AlternativeAuthentication {
-    public static final String MOD_ID = "alternative-auth";
+    public static final String MOD_ID = "alternative_auth";
 
     public AlternativeAuthentication() {
         AlternativeAuthConfigManager.loadConfig();
